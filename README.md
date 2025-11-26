@@ -18,13 +18,19 @@ lista/array de 6 ServoJoint
 método moveToPose({theta1..theta6})
 sequências automáticas
 Bibliotecas utilizadas: 
+
 VarSpeedServo
+
 ServoEasing
+
 RoboticArm.h 
+
 Dicas importante:
 Servomotores precisam de fonte externa;
+
 Zero máquina:
 Posição mecânica de referência fixa, usada para inicializar, calibrar ou voltar a um estado seguro.
+
 Zero peça:
 É a referência relativa ao ambiente, por exemplo:
 origem do plano de trabalho
