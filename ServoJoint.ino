@@ -10,40 +10,41 @@ private:
     int currentAngle;
 
 public:
-    // Construtor
     ServoJoint(int pin, int minAngle = 0, int maxAngle = 180, int offset = 0)
         : pin(pin), minAngle(minAngle), maxAngle(maxAngle), offset(offset), currentAngle(90) {}
 
-    // Anexa o servo ao pino
     void attach() {
         servo.attach(pin);
         servo.write(currentAngle + offset);
     }
 
-    // Mover para ângulo absoluto
-    void moveTo(int angle) {
-        angle = constrain(angle, minAngle, maxAngle);
-        currentAngle = angle;
-        servo.write(angle + offset);
+    // Movimento com velocidade (vel = delay entre passos)
+    void moveTo(int targetAngle, int velocidade = 5) {
+        targetAngle = constrain(targetAngle, minAngle, maxAngle);
+
+        if (targetAngle > currentAngle) {
+            for (int a = currentAngle; a <= targetAngle; a++) {
+                servo.write(a + offset);
+                delay(velocidade); // controla velocidade
+            }
+        } else {
+            for (int a = currentAngle; a >= targetAngle; a--) {
+                servo.write(a + offset);
+                delay(velocidade);
+            }
+        }
+        currentAngle = targetAngle;
     }
 
-    // Incremental
-    void moveBy(int delta) {
-        moveTo(currentAngle + delta);
+    // Movimento incremental
+    void moveBy(int delta, int velocidade = 5) {
+        moveTo(currentAngle + delta, velocidade);
     }
 
-    // Ler ângulo atual
     int getAngle() {
         return currentAngle;
     }
-
-    // Definir offset no eixo
-    void setOffset(int o) {
-        offset = o;
-        servo.write(currentAngle + offset);
-    }
 };
-
 
 //Criação dos Servos
 // Manipulador de 6 DOF
