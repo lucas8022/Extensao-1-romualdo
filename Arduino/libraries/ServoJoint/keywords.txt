@@ -1,0 +1,8 @@
+#Keywords para o ServoJoint
+ServoJoint      KEYWORD1
+
+#keyword para métodos
+moveTo          KEYWORD2
+moveBy          KEYWORD2
+getAngle        KEYWORD2
+setOffset       KEYWORD2
