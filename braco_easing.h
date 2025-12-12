@@ -2,8 +2,14 @@
 #define ROBOTARM_H
 
 #include <Arduino.h>
-// Inclui apenas o Header básico aqui
-#include <ServoEasing.h> 
+#include <ServoEasing.h> // Header apenas para tipos
+
+// --- CONSTANTES DE CALIBRAÇÃO DOS SERVOS ---
+// Ajuste estes valores conforme o datasheet do seu servo específico
+// Para a maioria dos servos analógicos padrão (SG90, MG996R):
+#define SERVO_MIN_MICROS      544  // Valor de pulso para 0 graus
+#define SERVO_MAX_MICROS      2400 // Valor de pulso para 180 graus
+#define SERVO_TRIM_DEGREE     90   // Ponto onde o servo deve ter 1500us (Centro)
 
 struct RobotPose {
     int angles[6];
@@ -11,43 +17,35 @@ struct RobotPose {
 
 class RobotArm {
     private:
-        ServoEasing servos[6]; // Array de objetos ServoEasing
-        int pinos[6];          // Pinos físicos onde estão conectados
+        ServoEasing servos[6]; 
+        int pinos[6];          
         
-        RobotPose zeroMaquina; // Posição Zero Máquina (Home)
-        RobotPose zeroPeca;    // Posição Zero Peça
-        RobotPose parkPose;    // Posição de descanso (para inicialização suave)
+        RobotPose machineZero; 
+        RobotPose workZero;    
+        RobotPose parkPose;    
 
-        float speedGlobal;     // Velocidade padrão (graus/segundo)
+        float speedGlobal;     
 
     public:
-        // Construtor
         RobotArm(int p1, int p2, int p3, int p4, int p5, int p6);
 
-        // Inicialização
         void begin(); 
 
-        // Configurações de Coordenadas
-        void setZeroMaquina(int a1, int a2, int a3, int a4, int a5, int a6);
-        void setZeroPeca(int a1, int a2, int a3, int a4, int a5, int a6);
+        void setMachineZero(int a1, int a2, int a3, int a4, int a5, int a6);
+        void setWorkZero(int a1, int a2, int a3, int a4, int a5, int a6);
         void setParkPose(int a1, int a2, int a3, int a4, int a5, int a6);
         void setSpeed(float degreesPerSecond);
 
-        // Controle de Estado dos Motores
         void attachAll();       
         void detachAll();       
         void stopAll();         
 
-        // Movimentos
         void goHome();
-        void goToZeroPeca();
+        void goToWorkZero();
         void goToPark();
         void moveToPose(RobotPose pose);
-        
-        // Controle Manual da Garra (Servo 6)
         void moveClaw(int angle);
 
-        // Verifica status
         bool isMoving();
 };
 

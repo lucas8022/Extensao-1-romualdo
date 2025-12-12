@@ -1,37 +1,46 @@
-#include "braco_easing.h"
+#include "RobotArm.h"
 
-// Construtor: Apenas salva os pinos e define valores padrão
 RobotArm::RobotArm(int p1, int p2, int p3, int p4, int p5, int p6) {
     pinos[0] = p1; pinos[1] = p2; pinos[2] = p3;
     pinos[3] = p4; pinos[4] = p5; pinos[5] = p6;
 
-    // Valores padrão de segurança (tudo em 90 graus)
-    setZeroMaquina(90, 90, 90, 90, 90, 90);
-    setZeroPeca(90, 90, 90, 90, 90, 90);
+    // Valores padrão
+    setMachineZero(90, 90, 90, 90, 90, 90);
+    setWorkZero(90, 90, 90, 90, 90, 90);
     setParkPose(90, 90, 90, 90, 90, 90);
     speedGlobal = 30; 
 }
 
 void RobotArm::begin() {
-    // Inicializa cada servo individualmente
+    // Inicializa cada servo usando attachWithTrim
+    // Isso garante que 90 graus seja tratado como o centro calibrado
     for (int i = 0; i < 6; i++) {
-        // Tenta anexar. O segundo parâmetro é a posição inicial (Park)
-        // Isso evita que o robô dê um tranco ao ligar, pois ele inicia onde "deveria" estar.
-        if (servos[i].attach(pinos[i], parkPose.angles[i]) == INVALID_SERVO) {
-             // Tratamento de erro (opcional: piscar LED)
+        
+        // attachWithTrim(PINO, TRIM_DEGREE, START_DEGREE, MIN_MICROS, MAX_MICROS)
+        // TRIM_DEGREE: 90 (onde o pulso é 1500us, aprox)
+        // START_DEGREE: Posição de repouso (Park) para não dar tranco
+        
+        if (servos[i].attachWithTrim(
+                pinos[i], 
+                SERVO_TRIM_DEGREE,   // 90 graus
+                parkPose.angles[i],  // Posição inicial (onde ele está agora)
+                SERVO_MIN_MICROS,    // 544 ou customizado
+                SERVO_MAX_MICROS     // 2400 ou customizado
+            ) == INVALID_SERVO) {
+             // Opcional: Serial.println("Erro servo");
         }
-        // Define o tipo de movimento suave (Cúbico é o mais natural para braços)
+        
+        // Define suavização Cúbica (Movimento natural)
         servos[i].setEasingType(EASE_CUBIC_IN_OUT); 
     }
 }
 
-// --- Setters de Posição ---
-void RobotArm::setZeroMaquina(int a1, int a2, int a3, int a4, int a5, int a6) {
-    zeroMaquina = {a1, a2, a3, a4, a5, a6};
+void RobotArm::setMachineZero(int a1, int a2, int a3, int a4, int a5, int a6) {
+    machineZero = {a1, a2, a3, a4, a5, a6};
 }
 
-void RobotArm::setZeroPeca(int a1, int a2, int a3, int a4, int a5, int a6) {
-    zeroPeca = {a1, a2, a3, a4, a5, a6};
+void RobotArm::setWorkZero(int a1, int a2, int a3, int a4, int a5, int a6) {
+    workZero = {a1, a2, a3, a4, a5, a6};
 }
 
 void RobotArm::setParkPose(int a1, int a2, int a3, int a4, int a5, int a6) {
@@ -42,12 +51,17 @@ void RobotArm::setSpeed(float degreesPerSecond) {
     speedGlobal = degreesPerSecond;
 }
 
-// --- Controle de Hardware ---
 void RobotArm::attachAll() {
     for (int i = 0; i < 6; i++) {
         if (!servos[i].attached()) {
-            // Ao reanexar, usa a posição atual lida para evitar pulos
-            servos[i].attach(pinos[i], servos[i].getCurrentAngle());
+            // Usa attachWithTrim novamente ao reconectar
+            servos[i].attachWithTrim(
+                pinos[i], 
+                SERVO_TRIM_DEGREE, 
+                servos[i].getCurrentAngle(), // Mantém posição atual
+                SERVO_MIN_MICROS, 
+                SERVO_MAX_MICROS
+            );
         }
     }
 }
@@ -59,35 +73,28 @@ void RobotArm::detachAll() {
 }
 
 void RobotArm::stopAll() {
-    // Função GLOBAL da biblioteca ServoEasing (não pertence à classe ServoEasing)
-    // Para todos os servos instantaneamente.
+    // Função global da biblioteca
     stopAllServos(); 
 }
 
-// --- Movimentos Sincronizados ---
-
 void RobotArm::moveToPose(RobotPose pose) {
-    // A biblioteca espera uint16_t para velocidade
     uint16_t speedInt = (uint16_t)speedGlobal;
 
-    // 1. "Agenda" o movimento de cada servo. 
-    // setEaseTo NÃO move o servo, apenas configura o destino.
     for (int i = 0; i < 6; i++) {
+        // setEaseTo apenas agenda o movimento
         servos[i].setEaseTo(pose.angles[i], speedInt);
     }
     
-    // 2. Inicia o movimento de TODOS ao mesmo tempo.
-    // A biblioteca calcula quem vai demorar mais e sincroniza os outros.
-    // Esta é uma função GLOBAL da biblioteca.
+    // Sincroniza e inicia o movimento
     synchronizeAllServosAndStartInterrupt();
 }
 
 void RobotArm::goHome() {
-    moveToPose(zeroMaquina);
+    moveToPose(machineZero);
 }
 
-void RobotArm::goToZeroPeca() {
-    moveToPose(zeroPeca);
+void RobotArm::goToWorkZero() {
+    moveToPose(workZero);
 }
 
 void RobotArm::goToPark() {
@@ -96,12 +103,9 @@ void RobotArm::goToPark() {
 
 void RobotArm::moveClaw(int angle) {
     uint16_t speedInt = (uint16_t)speedGlobal;
-    // Para mover um único servo imediatamente, usamos startEaseTo
-    // O último servo é o índice 5 (0 a 5 = 6 servos)
     servos[5].startEaseTo(angle, speedInt);
 }
 
 bool RobotArm::isMoving() {
-    // Verifica se a interrupção de movimento está ativa
     return ServoEasing::areInterruptsActive();
 }
