@@ -24,8 +24,8 @@ void RobotArm::begin() {
                 pinos[i], 
                 SERVO_TRIM_DEGREE,   // 90 graus
                 parkPose.angles[i],  // Posição inicial (onde ele está agora)
-                SERVO_MIN_MICROS,    // 544 ou customizado
-                SERVO_MAX_MICROS     // 2400 ou customizado
+                SERVO_MIN_MICROS,    // 700 ou customizado
+                SERVO_MAX_MICROS     // 2300 ou customizado
             ) == INVALID_SERVO) {
              // Opcional: Serial.println("Erro servo");
         }
@@ -47,7 +47,7 @@ void RobotArm::setParkPose(int a1, int a2, int a3, int a4, int a5, int a6) {
     parkPose = {a1, a2, a3, a4, a5, a6};
 }
 
-void RobotArm::setSpeed(float degreesPerSecond) {
+void RobotArm::setSpeed(int degreesPerSecond) {
     speedGlobal = degreesPerSecond;
 }
 

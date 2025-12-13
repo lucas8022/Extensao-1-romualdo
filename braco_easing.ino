@@ -49,12 +49,12 @@ void setup() {
     robot.setWorkZero(100, 45, 30, 110, 120, 0);
     
     // Velocidade global
-    robot.setSpeed(40);
+    robot.setSpeed(20);
 
     // 2. Inicialização do Robô
     Serial.println(F("Inicializando com attachWithTrim..."));
     
-    // Inicializa servos usando calibração de 1500us = 90 graus
+    // Attach com trim para calibração de 1500us = 90 graus
     robot.begin(); 
     
     delay(500);

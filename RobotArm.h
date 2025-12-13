@@ -7,8 +7,8 @@
 // --- CONSTANTES DE CALIBRAÇÃO DOS SERVOS ---
 // Ajuste estes valores conforme o datasheet do seu servo específico
 // Para a maioria dos servos analógicos padrão (SG90, MG996R):
-#define SERVO_MIN_MICROS      544  // Valor de pulso para 0 graus
-#define SERVO_MAX_MICROS      2400 // Valor de pulso para 180 graus
+#define SERVO_MIN_MICROS      700  // Valor de pulso para 0 graus
+#define SERVO_MAX_MICROS      2300 // Valor de pulso para 180 graus
 #define SERVO_TRIM_DEGREE     90   // Ponto onde o servo deve ter 1500us (Centro)
 
 struct RobotPose {
@@ -24,7 +24,7 @@ class RobotArm {
         RobotPose workZero;    
         RobotPose parkPose;    
 
-        float speedGlobal;     
+        int speedGlobal;     
 
     public:
         RobotArm(int p1, int p2, int p3, int p4, int p5, int p6);
@@ -34,7 +34,7 @@ class RobotArm {
         void setMachineZero(int a1, int a2, int a3, int a4, int a5, int a6);
         void setWorkZero(int a1, int a2, int a3, int a4, int a5, int a6);
         void setParkPose(int a1, int a2, int a3, int a4, int a5, int a6);
-        void setSpeed(float degreesPerSecond);
+        void setSpeed(int degreesPerSecond);
 
         void attachAll();       
         void detachAll();       
