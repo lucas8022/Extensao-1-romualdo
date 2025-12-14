@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 /*
  * braco_easing.ino
  * Controle de Braço Robótico 6-DOF com ServoEasing e AttachWithTrim
@@ -6,6 +8,11 @@
 // --- OBRIGATÓRIO: Inclua .hpp AQUI para o compilador gerar o código da biblioteca ---
 #include <ServoEasing.hpp> 
 #include "RobotArm.h"
+
+void lerBotoes();
+void executarCicloPassoAPasso();
+void iniciarDelay(unsigned long);
+void gerenciarEstados();
 
 // --- PINOS DOS BOTÕES ---
 const int PIN_START = 8;
@@ -42,14 +49,14 @@ void setup() {
     // 1. Configurações de Posição (Ângulos)
     // Park: Posição física de descanso (para evitar tranco ao ligar)
     // Esses valores serão usados como "START_DEGREE_VALUE" no attach
-    robot.setParkPose(90, 90, 90, 90, 90, 0); 
+    robot.setParkPose(-90, -90, -90, -90, -90, -90); 
     
     // Zero Máquina e Zero Peça
-    robot.setMachineZero(90, 90, 90, 90, 90, 0);
-    robot.setWorkZero(100, 45, 30, 110, 120, 0);
+    robot.setMachineZero(0, 0, -90, 0, 0, -90);
+    robot.setWorkZero(10, -45, -60, 10, 30, -90);
     
     // Velocidade global
-    robot.setSpeed(20);
+    robot.setSpeed(30);
 
     // 2. Inicialização do Robô
     Serial.println(F("Inicializando com attachWithTrim..."));
@@ -108,7 +115,7 @@ void lerBotoes() {
             }
             faseAtual = 0;
             emPausaDelay = false;
-            robot.setSpeed(40);
+            robot.setSpeed(25);
             estadoAtual = TRABALHANDO;
             delay(300);
         }
@@ -142,8 +149,8 @@ void executarCicloPassoAPasso() {
         }
     }
 
-    RobotPose deposito = {180, 100, 40, 90, 90, 75};
-    RobotPose subir    = {100, 45, 15, 110, 120, 0};
+    RobotPose deposito = {-90, 10, -30, 0, 0, -15};
+    RobotPose subir    = {10, -45, -20, 10, 30, -90}; // zeroMaquina (10, -45, -60, 10, 30, -90) 
 
     switch (faseAtual) {
         case 0:
@@ -152,23 +159,23 @@ void executarCicloPassoAPasso() {
             faseAtual++;
             break;
         case 1:
-            robot.moveClaw(75);
-            iniciarDelay(500);
+            robot.moveClaw(-15);    // abre a garra
+            iniciarDelay(2000);
             faseAtual++;
             break;
         case 2:
             robot.moveToPose(deposito);
-            iniciarDelay(2000);
+            iniciarDelay(2300);
             faseAtual++;
             break;
         case 3:
-            robot.moveClaw(0);
-            iniciarDelay(500);
+            robot.moveClaw(-90);      // fecha a garra
+            iniciarDelay(1000);
             faseAtual++;
             break;
         case 4:
             robot.moveToPose(subir);
-            iniciarDelay(1000);
+            iniciarDelay(2000);
             faseAtual++;
             break;
         case 5:

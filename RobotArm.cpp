@@ -5,10 +5,10 @@ RobotArm::RobotArm(int p1, int p2, int p3, int p4, int p5, int p6) {
     pinos[3] = p4; pinos[4] = p5; pinos[5] = p6;
 
     // Valores padrão
-    setMachineZero(90, 90, 90, 90, 90, 90);
-    setWorkZero(90, 90, 90, 90, 90, 90);
-    setParkPose(90, 90, 90, 90, 90, 90);
-    speedGlobal = 30; 
+    setMachineZero(0, 0, 0, 0, 0, 0);
+    setWorkZero(0, 0, 0, 0, 0, 0);
+    setParkPose(0, 0, 0, 0, 0, 0);
+    speedGlobal = 25; 
 }
 
 void RobotArm::begin() {
@@ -16,16 +16,18 @@ void RobotArm::begin() {
     // Isso garante que 90 graus seja tratado como o centro calibrado
     for (int i = 0; i < 6; i++) {
         
-        // attachWithTrim(PINO, TRIM_DEGREE, START_DEGREE, MIN_MICROS, MAX_MICROS)
-        // TRIM_DEGREE: 90 (onde o pulso é 1500us, aprox)
+        // attachWithTrim(PINO, TRIM_DEGREE, START_DEGREE, MIN_MICROS, MAX_MICROS, MIN_ANGLE, MAX_ANGLE)
+        // TRIM_DEGREE: 0 (onde o pulso é 1500us, aprox)
         // START_DEGREE: Posição de repouso (Park) para não dar tranco
         
         if (servos[i].attachWithTrim(
                 pinos[i], 
-                SERVO_TRIM_DEGREE,   // 90 graus
-                parkPose.angles[i],  // Posição inicial (onde ele está agora)
+                0,   // 90 graus
+                parkPose.angles[i],  // Posição inicial
                 SERVO_MIN_MICROS,    // 700 ou customizado
-                SERVO_MAX_MICROS     // 2300 ou customizado
+                SERVO_MAX_MICROS,     // 2300 ou customizado
+                -90,
+                90
             ) == INVALID_SERVO) {
              // Opcional: Serial.println("Erro servo");
         }

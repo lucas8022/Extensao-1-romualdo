@@ -7,9 +7,8 @@
 // --- CONSTANTES DE CALIBRAÇÃO DOS SERVOS ---
 // Ajuste estes valores conforme o datasheet do seu servo específico
 // Para a maioria dos servos analógicos padrão (SG90, MG996R):
-#define SERVO_MIN_MICROS      700  // Valor de pulso para 0 graus
-#define SERVO_MAX_MICROS      2300 // Valor de pulso para 180 graus
-#define SERVO_TRIM_DEGREE     90   // Ponto onde o servo deve ter 1500us (Centro)
+#define SERVO_MIN_MICROS      500  // Valor de pulso para 0 graus (700)
+#define SERVO_MAX_MICROS      2500 // Valor de pulso para 180 graus (2500)
 
 struct RobotPose {
     int angles[6];
