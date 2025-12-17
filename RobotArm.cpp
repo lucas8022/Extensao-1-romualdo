@@ -59,7 +59,7 @@ void RobotArm::attachAll() {
             // Usa attachWithTrim novamente ao reconectar
             servos[i].attachWithTrim(
                 pinos[i], 
-                SERVO_TRIM_DEGREE, 
+                0, 
                 servos[i].getCurrentAngle(), // Mantém posição atual
                 SERVO_MIN_MICROS, 
                 SERVO_MAX_MICROS

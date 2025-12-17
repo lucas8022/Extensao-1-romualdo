@@ -11,7 +11,7 @@ Este projeto implementa uma biblioteca e um programa de controle completo para u
 
 ## 👤 Autores
 Lucas8022, Caio_com_c, Kaique, Carolina, João Vitor, Guilherme, Yuri.
-Projeto desenvolvido como parte da avaliação da disciplina de Práticas Curriculares de Extensão I do curso de Engenharia de Controle e Automação (IFPB- Campucs Cajazeiras-PB).
+Projeto desenvolvido como parte da avaliação da disciplina de Práticas Curriculares de Extensão I do curso de Engenharia de Controle e Automação (IFPB- Campus Cajazeiras-PB).
 
 ---
 
