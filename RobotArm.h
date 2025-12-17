@@ -9,6 +9,8 @@
 // Para a maioria dos servos analógicos padrão (SG90, MG996R):
 #define SERVO_MIN_MICROS      500  // Valor de pulso para 0 graus (700)
 #define SERVO_MAX_MICROS      2500 // Valor de pulso para 180 graus (2500)
+#define SERVO_TRIM_DEGREE   1500 
+
 
 struct RobotPose {
     int angles[6];

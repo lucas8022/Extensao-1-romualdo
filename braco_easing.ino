@@ -1,81 +1,68 @@
 #include <Arduino.h>
-
-/*
- * braco_easing.ino
- * Controle de Braço Robótico 6-DOF com ServoEasing e AttachWithTrim
- */
-
-// --- OBRIGATÓRIO: Inclua .hpp AQUI para o compilador gerar o código da biblioteca ---
 #include <ServoEasing.hpp> 
 #include "RobotArm.h"
 
-void lerBotoes();
-void executarCicloPassoAPasso();
-void iniciarDelay(unsigned long);
-void gerenciarEstados();
-
-// --- PINOS DOS BOTÕES ---
+// --- DEFINIÇÃO DOS PINOS ---
 const int PIN_START = 8;
 const int PIN_STOP = 9;
 const int PIN_EMERGENCIA = 10;
+const int PIN_SENSOR = 11; 
 
-// --- CONFIGURAÇÃO DOS PINOS DOS SERVOS (Base -> Garra) ---
-// Pinos: 2, 3, 4, 5, 6, 7
+// --- CONFIGURAÇÃO DOS PINOS DOS SERVOS
 RobotArm robot(2, 3, 4, 5, 6, 7);
 
 // --- ESTADOS DO SISTEMA ---
 enum EstadoSistema {
-    EM_ESPERA,      // Parado em Home/Park
-    TRABALHANDO,    // Executando o ciclo
-    PARANDO,        // Solicitado STOP, finalizando movimento
-    EMERGENCIA      // Parada total (motores soltos)
+    EM_ESPERA,      
+    AGUARDANDO_PECA,
+    EXECUTANDO,     
+    PARANDO,        
+    EMERGENCIA      
 };
 
 EstadoSistema estadoAtual = EM_ESPERA;
 
 // --- VARIÁVEIS DE CONTROLE ---
-int faseAtual = 0;
+int faseCiclo = 0;
 unsigned long tempoInicioEspera = 0;
 bool emPausaDelay = false;
 unsigned long duracaoDelay = 0;
 
+// Declaração de funções
+void lerBotoes();
+void executarLogicaEsteira();
+void iniciarDelay(unsigned long ms);
+void gerenciarEstados();
+
 void setup() {
     Serial.begin(115200);
     
+    // Configura botões e sensor
     pinMode(PIN_START, INPUT_PULLUP);
     pinMode(PIN_STOP, INPUT_PULLUP);
     pinMode(PIN_EMERGENCIA, INPUT_PULLUP);
+    pinMode(PIN_SENSOR, INPUT_PULLUP); 
 
-    // 1. Configurações de Posição (Ângulos)
-    // Park: Posição física de descanso (para evitar tranco ao ligar)
-    // Esses valores serão usados como "START_DEGREE_VALUE" no attach
+    // 1. Configurações de Posição
     robot.setParkPose(-90, -90, -90, -90, -90, -90); 
-    
-    // Zero Máquina e Zero Peça
     robot.setMachineZero(0, 0, -90, 0, 0, -90);
-    robot.setWorkZero(10, -45, -60, 10, 30, -90);
     
-    // Velocidade global
+    // Posição de ESPERA (Acima da esteira, garra aberta)
+    robot.setWorkZero(10, -45, -60, 10, 30, -15); // Nota: Garra -15 (aberta)
+    
     robot.setSpeed(30);
 
-    // 2. Inicialização do Robô
-    Serial.println(F("Inicializando com attachWithTrim..."));
-    
-    // Attach com trim para calibração de 1500us = 90 graus
+    // 2. Inicialização
+    Serial.println(F("Sistema Iniciando..."));
     robot.begin(); 
-    
     delay(500);
 
-    // Vai para Home
     Serial.println(F("Indo para Home..."));
     robot.goHome();
     
-    // Aguarda chegar em Home
-    while(robot.isMoving()) { 
-        delay(10); 
-    }
+    while(robot.isMoving()) { delay(10); }
     
-    Serial.println(F("Pronto. Aguardando Start."));
+    Serial.println(F("Pronto. Aguardando START."));
     estadoAtual = EM_ESPERA;
 }
 
@@ -85,6 +72,7 @@ void loop() {
 }
 
 void lerBotoes() {
+    // EMERGÊNCIA 
     if (digitalRead(PIN_EMERGENCIA) == LOW) {
         if (estadoAtual != EMERGENCIA) {
             Serial.println(F("!!! EMERGÊNCIA !!!"));
@@ -94,9 +82,11 @@ void lerBotoes() {
         }
     }
 
+    // STOP (Parada Controlada)
     if (digitalRead(PIN_STOP) == LOW) {
-        if (estadoAtual == TRABALHANDO) {
-            Serial.println(F("STOP. Voltando para Home..."));
+        if (estadoAtual == AGUARDANDO_PECA || estadoAtual == EXECUTANDO) {
+            Serial.println(F("STOP. Finalizando e voltando para Home..."));
+            // Se estiver movendo, para.
             robot.stopAll();
             robot.attachAll();
             robot.setSpeed(30);
@@ -105,42 +95,57 @@ void lerBotoes() {
         }
     }
 
+    // START 
     if (digitalRead(PIN_START) == LOW) {
-        if (estadoAtual != TRABALHANDO) {
-            Serial.println(F("Iniciando Ciclo..."));
-            robot.attachAll();
+        if (estadoAtual != AGUARDANDO_PECA && estadoAtual != EXECUTANDO) {
+            Serial.println(F("Sistema Ativado: Indo para Esteira..."));
+            robot.attachAll(); // Garante motores ligados
+            
+            // Recupera de emergência
             if (estadoAtual == EMERGENCIA) {
                 robot.goHome();
                 while(robot.isMoving()); 
             }
-            faseAtual = 0;
+            
+            faseCiclo = 0;
             emPausaDelay = false;
             robot.setSpeed(25);
-            estadoAtual = TRABALHANDO;
-            delay(300);
+            // Começa o ciclo indo para a posição de espera na esteira
+            estadoAtual = EXECUTANDO; 
+            delay(300); 
         }
     }
 }
 
 void gerenciarEstados() {
     switch (estadoAtual) {
-        case EM_ESPERA: break;
-        case EMERGENCIA: break;
+        case EM_ESPERA: 
+            // Não faz nada, aguarda START
+            break;
+            
+        case EMERGENCIA: 
+            // Não faz nada, aguarda START para resetar
+            break;
+            
         case PARANDO:
             if (!robot.isMoving()) {
                 Serial.println(F("Parado em Home."));
                 estadoAtual = EM_ESPERA;
             }
             break;
-        case TRABALHANDO:
-            executarCicloPassoAPasso();
+            
+        case EXECUTANDO:
+        case AGUARDANDO_PECA: // Ambos usam a mesma função lógica
+            executarLogicaEsteira();
             break;
     }
 }
 
-void executarCicloPassoAPasso() {
+void executarLogicaEsteira() {
+    // 1. Se o robô está movendo, sai e espera terminar
     if (robot.isMoving()) return;
 
+    // 2. Se existe um delay programado (ex: tempo de fechar a garra), espera
     if (emPausaDelay) {
         if (millis() - tempoInicioEspera >= duracaoDelay) {
             emPausaDelay = false;
@@ -149,37 +154,68 @@ void executarCicloPassoAPasso() {
         }
     }
 
-    RobotPose deposito = {-90, 10, -30, 0, 0, -15};
-    RobotPose subir    = {10, -45, -20, 10, 30, -90}; // zeroMaquina (10, -45, -60, 10, 30, -90) 
+    RobotPose deposito = {-90, 10, -30, 0, 0, -90}; // Garra -90 (fechada)
+    RobotPose subir    = {10, -45, -20, 10, 30, -90}; 
 
-    switch (faseAtual) {
+    // 3. Ciclo de Trabalho
+    switch (faseCiclo) {
         case 0:
-            robot.goToWorkZero();
-            iniciarDelay(1000);
-            faseAtual++;
+            // Vai para posição de espera na esteira (WorkZero)
+            // Certifique-se que WorkZero tem a garra ABERTA ou adicione comando aqui
+            robot.goToWorkZero(); 
+            // Abre a garra preventivamente enquanto vai
+            robot.moveClaw(-15); 
+            
+            Serial.println(F("Indo para esteira. Aguardando objeto..."));
+            estadoAtual = AGUARDANDO_PECA; // Atualiza status para debug
+            faseCiclo++;
             break;
+
         case 1:
-            robot.moveClaw(-15);    // abre a garra
-            iniciarDelay(2000);
-            faseAtual++;
+            // Fica "preso" nesta fase em loop até o sensor detectar algo
+            
+            if (digitalRead(PIN_SENSOR) == HIGH) { // HIGH = Objeto detectado
+                Serial.println(F("Objeto Detectado! Pegando..."));
+                estadoAtual = EXECUTANDO;
+                
+                // Pequeno delay para garantir que o objeto está centralizado na garra
+                // Se a esteira for rápida, diminua este valor.
+                iniciarDelay(500); 
+                faseCiclo++;
+            }
             break;
+
         case 2:
-            robot.moveToPose(deposito);
-            iniciarDelay(2300);
-            faseAtual++;
+            // Fecha a garra
+            robot.moveClaw(-90);
+            iniciarDelay(800); // Tempo para garantir 
+            faseCiclo++;
             break;
+
         case 3:
-            robot.moveClaw(-90);      // fecha a garra
-            iniciarDelay(1000);
-            faseAtual++;
+            // Levanta/Vai para Depósito
+            Serial.println(F("Levando ao deposito..."));
+            robot.moveToPose(deposito);
+            faseCiclo++;
             break;
+
         case 4:
-            robot.moveToPose(subir);
-            iniciarDelay(2000);
-            faseAtual++;
+            // Abre a garra (Solta a peça)
+            Serial.println(F("Soltando..."));
+            robot.moveClaw(-15);
+            iniciarDelay(500);
+            faseCiclo++;
             break;
+
         case 5:
-            faseAtual = 0; // Reinicia ciclo
+            robot.moveToPose(subir);
+            // robot.moveClaw(-90); // Opcional: fechar garra para o retorno
+            faseCiclo++;
+            break;
+
+        case 6:
+            Serial.println(F("Ciclo concluido. Retornando para esteira."));
+            faseCiclo = 0; 
             break;
     }
 }
