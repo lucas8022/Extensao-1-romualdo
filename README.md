@@ -3,7 +3,9 @@
 Sistema de controle para um braço robótico de até 6 graus de liberdade utilizando servomotores adaptado para biblioteca `ServoEasing` (https://github.com/ArminJo/ServoEasing) para Arduino.
 
 ## Simulação via extensão Wokwi no VSCode
-![Simulacao](assets/to_readme/content.gif)
+
+https://github.com/user-attachments/assets/a25d294a-869f-4aff-9fd4-fd14cfbfc061
+
 
 ## Descrição
 
