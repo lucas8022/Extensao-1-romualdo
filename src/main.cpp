@@ -7,7 +7,8 @@ const int PIN_SENSOR_A = 26; // Sensor da Peça (LOW = Objeto detectado)
 const int PIN_SENSOR_B = 24; // Sensor do segundo braço 
 const int PIN_ESTEIRA  = 22; // Saída: Controle do motor (LOW = LIGA, HIGH = DESLIGA)
 const int PIN_START    = 8; 
-const int PIN_STOP     = 9; 
+const int PIN_STOP     = 9;
+const int PIN_VAR_AUX  = 28; 
 
 // --- INSTANCIAÇÃO DO BRAÇO ---
 BracoIndustrial robot(5, 6, 7, 11, 10); 
@@ -63,6 +64,7 @@ void setup() {
     pinMode(PIN_ESTEIRA, OUTPUT);
     pinMode(PIN_START, INPUT_PULLUP);
     pinMode(PIN_STOP, INPUT_PULLUP);
+    pinMode(PIN_VAR_AUX, OUTPUT);
     
     // Calibração
     robot.setZeroMaquina(30, 120, 0, 90, 50);  
@@ -99,7 +101,7 @@ void loop() {
 
         case INICIANDO:
             if (!robot.isMoving()) {
-                Serial.println(F("Posicionado..."));
+                Serial.println(F("Posicionado Zero Peça..."));
                 //solicitarEsteira(true); 
                 tempoUltimaAtividade = millis(); 
                 estadoAtual = AGUARDANDO_PECA;
@@ -180,6 +182,7 @@ void lerBotoes() {
     if (digitalRead(PIN_START) == LOW) {
         if (estadoAtual == EM_ESPERA_START) {
             Serial.println(F("START pressionado!"));
+            digitalWrite(PIN_VAR_AUX, HIGH);    // variavel auxiliar HIGH
             robot.attachAll(); 
             robot.moveBase(150);
             delayComSeguranca(2500);
@@ -195,6 +198,7 @@ void lerBotoes() {
             
             Serial.println(F("STOP pressionado!"));
             solicitarEsteira(false); 
+            digitalWrite(PIN_VAR_AUX, LOW);    // variavel auxiliar HIGH
             robot.stopAll();         
             robot.attachAll();
             robot.move3(0);
