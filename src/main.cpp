@@ -5,15 +5,14 @@
 // --- DEFINIÇÃO DOS PINOS (I/O) ---
 const int PIN_SENSOR_A = 26; // Sensor da Peça (LOW = Objeto detectado)
 const int PIN_SENSOR_B = 24; // Sensor do segundo braço 
-const int PIN_ESTEIRA  = 22; // Saída: Controle do motor
-const int PIN_START    = 8; // Botão Verde
-const int PIN_STOP     = 9; // Botão Vermelho
+const int PIN_ESTEIRA  = 22; // Saída: Controle do motor (LOW = LIGA, HIGH = DESLIGA)
+const int PIN_START    = 8; 
+const int PIN_STOP     = 9; 
 
 // --- INSTANCIAÇÃO DO BRAÇO ---
-BracoIndustrial robot(5, 6, 7, 11, 10);    // adicionando os pinos aos servos
-//RobotArm equipe2(15,16,17,18,19);
+BracoIndustrial robot(5, 6, 7, 11, 10); 
 
-// --- ESTADOS DO SISTEMA (FSM) ---
+// --- ESTADOS DO SISTEMA (FSM GERAL) ---
 enum EstadoSistema {
     EM_ESPERA_START, 
     INICIANDO,       
@@ -24,6 +23,16 @@ enum EstadoSistema {
 };
 
 EstadoSistema estadoAtual = EM_ESPERA_START;
+
+// --- ESTADOS DO SENSOR B (Lógica de Tempo) ---
+enum EstadosB {
+    B_MONITORANDO, // 0: Funcionamento normal
+    B_BLOQUEIO_5S, // 1: Parado por 5s
+    B_IGNORA_3S    // 2: Rodando, ignora sensor por 3s
+};
+
+EstadosB estadoSensorB = B_MONITORANDO;
+unsigned long timerSensorB = 0;
 
 // --- VARIÁVEIS DE CONTROLE ---
 unsigned long tempoUltimaAtividade = 0;
@@ -43,7 +52,7 @@ void executarCicloPassoAPasso();
 void iniciarDelay(unsigned long ms);
 void solicitarEsteira(bool ligar); 
 void gerenciarHardwareEsteira();   
-void delayComSeguranca(unsigned long ms); // Substitui o delay() comum
+void delayComSeguranca(unsigned long ms); 
 
 // Configuracao inicial do sistema
 void setup() {
@@ -55,7 +64,8 @@ void setup() {
     pinMode(PIN_START, INPUT_PULLUP);
     pinMode(PIN_STOP, INPUT_PULLUP);
     
-    robot.setZeroMaquina(30, 120, 0, 90, 50);  //GARRA 50 -> 180
+    // Calibração
+    robot.setZeroMaquina(30, 120, 0, 90, 50);  
     robot.setZeroPeca(150, 85, 60, 97, 75);     
     robot.setSpeed(30); 
 
@@ -67,7 +77,6 @@ void setup() {
     robot.goHome();
     solicitarEsteira(false); 
     
-    // Enquanto move, checa o sensor B para cortar a esteira se necessário
     while(robot.isMoving()) { 
         gerenciarHardwareEsteira(); 
         delay(10); 
@@ -77,11 +86,11 @@ void setup() {
     estadoAtual = EM_ESPERA_START;
 }
 
-// Loop principal: maquina de estados do ciclo
+// Loop principal
 void loop() {
     lerBotoes(); 
     
-    gerenciarHardwareEsteira();     // Atualiza saída da esteira com prioridade de segurança
+    gerenciarHardwareEsteira(); 
 
     switch (estadoAtual) {
         
@@ -90,8 +99,8 @@ void loop() {
 
         case INICIANDO:
             if (!robot.isMoving()) {
-                Serial.println(F("Posicionado. Solicitando esteira..."));
-                solicitarEsteira(true); 
+                Serial.println(F("Posicionado..."));
+                //solicitarEsteira(true); 
                 tempoUltimaAtividade = millis(); 
                 estadoAtual = AGUARDANDO_PECA;
             }
@@ -114,19 +123,17 @@ void loop() {
                 return;
             }
 
-            // Sensor A (Peça Chegou)
+            // Sensor A (Peça Chegou) - PRIORIDADE
             if (digitalRead(PIN_SENSOR_A) == LOW) {
                 Serial.println(F("Sensor A: Objeto Detectado! Parando esteira."));
                 solicitarEsteira(false); 
                 delay(130);
-                //delayComSeguranca(3000); 
                 faseCiclo = 0;
                 estadoAtual = EXECUTANDO_CICLO;
             }
-            // Timeout -> Home (mantendo a intenção de esteira ligada)
+            // Timeout -> Home
             else if (millis() - tempoUltimaAtividade > TEMPO_TIMEOUT) {
-                Serial.println(F("Ocioso. Indo para Home (Esteira continua ON)..."));
-                // solicitarEsteira(false); // <--- REMOVIDO PARA MANTER LIGADA
+                Serial.println(F("Ocioso. Indo para Home..."));
                 robot.move3(0);
                 delayComSeguranca(2000); 
                 robot.goHome();          
@@ -135,17 +142,15 @@ void loop() {
             break;
 
         case REPOUSO_HOME:
-            if (robot.isMoving())
-            {
+            if (robot.isMoving()) {
                 gerenciarHardwareEsteira();
                 return;
             } 
 
-            // Se detectar objeto no Sensor A enquanto repousa
             if (digitalRead(PIN_SENSOR_A) == LOW) {
                 Serial.println(F("Objeto visto (Sensor A)! Parando esteira e indo pegar objeto..."));
                 
-                solicitarEsteira(false); // Para a esteira imediatamen
+                solicitarEsteira(false); 
                 
                 robot.moveBase(140);
                 delayComSeguranca(1200);
@@ -171,7 +176,6 @@ void loop() {
     }
 }
 
-// Leitura dos botoes e transicoes de estado
 void lerBotoes() {
     if (digitalRead(PIN_START) == LOW) {
         if (estadoAtual == EM_ESPERA_START) {
@@ -204,10 +208,8 @@ void lerBotoes() {
     }
 }
 
-// Sequencia do ciclo de pega e deposita
 void executarCicloPassoAPasso() {
-    if (robot.isMoving()) 
-    {
+    if (robot.isMoving()) {
         gerenciarHardwareEsteira();
         return;
     }
@@ -216,7 +218,6 @@ void executarCicloPassoAPasso() {
         if (millis() - tempoInicioDelay >= duracaoDelay) {
             emPausaDelay = false;
         } else {
-            // Continua checando segurança enquanto espera o tempo passar
             gerenciarHardwareEsteira();
             return;
         }
@@ -225,33 +226,27 @@ void executarCicloPassoAPasso() {
     RobotPose deposito = {75, 130, 31, 75, 110};
     RobotPose ajuste    = {75, 130, 10, 97, 50}; 
 
-    // (150, 85, 70, 105, 50)     VALORES ZERO PECA (referência)
-
     switch (faseCiclo) {
         case 0:
             Serial.println(F("CASE 0: BAIXANDO BRAÇO"));
             robot.move3(75);
-            //iniciarDelay(800); 
             faseCiclo++;
             break;
         case 1: 
             Serial.println(F("CASE 1: FECHANDO GARRA"));
-            robot.moveGarra(114); // 130
-            //iniciarDelay(800); 
+            robot.moveGarra(114); 
             faseCiclo++;
             break;
 
         case 2:
             Serial.println(F("CASE 2: SUBINDO BRAÇO"));
             robot.move3(5);
-            //delayComSeguranca(1000);
-            //iniciarDelay(800); 
             faseCiclo++;
             break;
 
         case 3: // Leva para depósito
             Serial.println(F("CASE 3: DEPÓSITO"));
-            solicitarEsteira(true); // O robô pede para ligar
+            // solicitarEsteira(true); 
             robot.moveToPose(deposito);
             faseCiclo++;
             break;
@@ -259,7 +254,6 @@ void executarCicloPassoAPasso() {
         case 4: // Solta
             Serial.println(F("CASE 4: ABRINDO GARRA"));
             robot.moveGarra(50);
-            //iniciarDelay(800);
             faseCiclo++;
             break;
 
@@ -283,7 +277,6 @@ void executarCicloPassoAPasso() {
     }
 }
 
-// Agenda um delay nao bloqueante
 void iniciarDelay(unsigned long ms) {
     emPausaDelay = true;
     tempoInicioDelay = millis();
@@ -292,51 +285,85 @@ void iniciarDelay(unsigned long ms) {
 
 // --- CONTROLE INTELIGENTE DA ESTEIRA ---
 
-// Define apenas a intenção do robô
 void solicitarEsteira(bool ligar) {
     esteiraDeveRodar = ligar;
 }
 
-//  Controla o pino real, com prioridade para o Sensor B
-// void gerenciarHardwareEsteira() {
-//     // 1. PRIORIDADE TOTAL: Sensor B (Segurança)
-//     // Se o sensor B detectar algo (HIGH), CORTA a energia da esteira
-//     if (digitalRead(PIN_SENSOR_B) == LOW || digitalRead(PIN_SENSOR_B) == LOW) {
-//         delayComSeguranca(150);
-//         digitalWrite(PIN_ESTEIRA, LOW); 
-//     } 
-//     // 2. Se o Sensor B estiver livre, obedece ao robô
-//     else {
-
-//         if (esteiraDeveRodar) {
-//             digitalWrite(PIN_ESTEIRA, LOW);
-//         } else {
-//             digitalWrite(PIN_ESTEIRA, HIGH);
-//         }
-//     }
-// }
-
-// Controla o pino real, com prioridade para o Sensor B
+// ---------------------------------------------------------
+// NOVA FUNÇÃO DE GERENCIAMENTO (Máquina de Estados Sensor B)
+// ---------------------------------------------------------
 void gerenciarHardwareEsteira() {
-    bool sensorB_acionado = (digitalRead(PIN_SENSOR_B) == LOW);
     bool sensorA_acionado = (digitalRead(PIN_SENSOR_A) == LOW);
+    bool sensorB_leitura  = (digitalRead(PIN_SENSOR_B) == LOW);
+    
+    // Flag interna para saber se o Sensor B está exigindo parada
+    bool bloqueioPeloB = false;
 
-    // Prioridade total: qualquer sensor ativo corta a esteira
-    if (sensorB_acionado || sensorA_acionado) {
+    // --- MÁQUINA DE ESTADOS DO SENSOR B ---
+    switch (estadoSensorB) {
         
-        digitalWrite(PIN_ESTEIRA, HIGH);
+        // FASE 0: MONITORAMENTO NORMAL
+        case B_MONITORANDO:
+            if (sensorB_leitura) {
+                // Detectou! Inicia bloqueio de 5 segundos
+                estadoSensorB = B_BLOQUEIO_5S;
+                timerSensorB = millis();
+                bloqueioPeloB = true; 
+            }
+            break;
+
+        // FASE 1: BLOQUEIO DE 5 SEGUNDOS (Esteira parada)
+        case B_BLOQUEIO_5S:
+            bloqueioPeloB = true; // Força bloqueio independente da leitura atual
+            
+            // Passaram 5 segundos?
+            if (millis() - timerSensorB >= 5000) {
+                // Vai para fase de ignorar (libera esteira)
+                estadoSensorB = B_IGNORA_3S;
+                timerSensorB = millis();
+                solicitarEsteira(true);
+                bloqueioPeloB = false; 
+            }
+            break;
+
+        // FASE 2: IGNORAR POR 3 SEGUNDOS (Esteira liberada, cega para Sensor B)
+        case B_IGNORA_3S:
+            bloqueioPeloB = false; // Não bloqueia (permite rodar)
+            
+            // Passaram 3 segundos?
+            if (millis() - timerSensorB >= 3000) {
+                // Volta a monitorar
+                estadoSensorB = B_MONITORANDO;
+            }
+            break;
+    }
+
+    // --- DECISÃO FINAL DO HARDWARE ---
+    
+    // 1. O Sensor A tem prioridade máxima absoluta
+    if (sensorA_acionado) {
+        digitalWrite(PIN_ESTEIRA, HIGH); // HIGH = PARA
         return;
     }
 
-    digitalWrite(PIN_ESTEIRA, esteiraDeveRodar ? LOW : HIGH);
+    // 2. Se Sensor A está livre, verificamos o bloqueio do Sensor B
+    if (bloqueioPeloB) {
+        digitalWrite(PIN_ESTEIRA, HIGH); // HIGH = PARA
+        return;
+    }
+
+    // 3. Se ninguém está bloqueando, segue a vontade do software
+    // LOW = LIGA, HIGH = DESLIGA
+    if (esteiraDeveRodar) {
+        digitalWrite(PIN_ESTEIRA, LOW);
+    } else {
+        digitalWrite(PIN_ESTEIRA, HIGH);
+    }
 }
 
-
-// Substituto do delay: espera o tempo passar, mas vigia o sensor B
 void delayComSeguranca(unsigned long ms) {
     unsigned long inicio = millis();
     while (millis() - inicio < ms) {
-        // A cada milissegundo de espera, checa se precisa parar a esteira
         gerenciarHardwareEsteira(); 
     }
 }
